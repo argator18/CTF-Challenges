@@ -1,0 +1,29 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+
+<script src="js/jquery-3.7.1.min.js"></script>
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    <p>Check out this cool, interactive, JS based PhotoEditor. Upload your image and get started right away!</a>.</p>
+
+    <input type="file"  accept="image/*" name="image" id="file"  onchange="loadFile(event)" style="display: none;">
+    <p><label for="file" style="cursor: pointer; border: 2px; border-style: dotted;">Upload Image</label></p>
+    <img id="output" width="600">
+    <br>
+    <p>
+        <a href="#" class="btn btn-primary" onclick="downloadImage()">Download Image</a>
+        <a href="#" class="btn btn-secondary" onclick="editImage('GrayscaleImage', [0.5])">Grayscale</a>
+        <a href="#" class="btn btn-secondary" onclick="editImage('BlackWhiteImage', [])">Black and White</a>
+        <a href="#" class="btn btn-secondary" onclick="editImage('InvertImage', [])">Invert Colors</a>
+        <a href="#" class="btn btn-secondary" onclick="editImage('RotateImage', [90])">Rotate 90 Degrees Clockwise</a>
+        <a href="#" class="btn btn-secondary" onclick="editImage('CropImage', [{'X':0,'Y':0,'W':20,'H':20}], ['PhotoEditor.Models.RectangleStruct'])">Crop 20x20</a>
+    
+    </p>
+    <div class="alert alert-danger" style="display:none;" id="lastException" role="alert">
+
+    </div>
+</div>
+
+

@@ -1,0 +1,18 @@
+version: '3.1'
+
+services:
+  win_server:
+    build:
+      context: ./win_server
+      dockerfile: Dockerfile
+    restart: always
+    hostname: win-server
+    ports:
+      - 53389:53389
+      - 5022:5022
+    extra_hosts:
+      - "localhost:127.0.0.1"
+    environment:
+      - VAGRANT_PASS=passw0rd123#
+      - FLAG=CSCG{TESTFLAG}
+

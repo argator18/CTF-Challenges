@@ -1,0 +1,46 @@
+---
+- name: Setup host
+  hosts: all 
+ 
+  tasks:
+    - name: Deinstall Defender
+      win_shell: 'powershell -c "Remove-WindowsFeature Windows-Defender"'
+
+    - name: Copy the first installer
+      win_copy:
+        src: /opt/vagrant/vc_redist.x64.exe
+        dest: 'C:\Users\vagrant\Downloads\vc_redist.x64.exe'
+  
+    - name: Install the Visual C thingy
+      win_package:
+        path: 'C:\Users\vagrant\Downloads\vc_redist.x64.exe'
+        state: present
+        arguments: /install /passive /norestart
+
+    - name: Copy the second installer
+      win_copy:
+        src: /opt/vagrant/JASP-0.18.3.0-Windows.msi
+        dest: 'C:\Users\vagrant\Downloads\JASP-0.18.3.0-Windows.msi'
+    
+    - name: Install an MSI
+      win_shell: 'cmd.exe /c "start /wait msiexec.exe /package C:\Users\vagrant\Downloads\JASP-0.18.3.0-Windows.msi /passive /l C:\log.txt"'
+
+    - name: Create user
+      win_user: 
+        name: lowpriv
+        password: Thisisaverylongpassword123!$
+        state: present
+        groups:
+          - Users
+          - Remote Desktop Users
+
+    - name: Install all updates and reboot as many times as needed
+      win_updates:
+        category_names: '*'
+        reboot: true
+        reboot_timeout: 3600
+    
+    - name: Deactivate updates
+      win_shell: 'powershell -c "Set-ItemProperty -Path HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU -Name NoAutoUpdate -Value 1"'
+
+
