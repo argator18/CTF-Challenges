@@ -1,0 +1,10 @@
+version: "3.9"
+
+services:
+  torope:
+    build: .
+    restart: unless-stopped
+    environment:
+      FLAG: "CSR{TESTFLAG}"
+    ports:
+      - "9373:1337"

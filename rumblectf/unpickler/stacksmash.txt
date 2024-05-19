@@ -1,0 +1,6 @@
+N, None, 0
+2, None, 1
+r, 01000000
+N, None, 0
+2, None, 2
+., None, 5
