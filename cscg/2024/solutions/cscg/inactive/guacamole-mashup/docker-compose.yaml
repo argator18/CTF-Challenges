@@ -1,0 +1,46 @@
+version: '3.1'
+
+services:
+  win_server:
+    image: harbor.cscg.live/public/guac_challenge_win_server:latest
+    restart: always
+    hostname: win-server
+    ports:
+      - 3389:3339
+      - 50022:50022
+      - 5900:5900
+    extra_hosts:
+      - "localhost:127.0.0.1"
+
+  guac_frontend:
+    build:
+      context: ./guac_frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 3000:3000
+    environment:
+      REACT_APP_GUAC_BACKEND_HOSTNAME: localhost # "session[...].play.cscg.live" in real deployment on challenge plattform
+      REACT_APP_WIN_SERVER_HOSTNAME: win-server     # "localhost" in real deployment on challenge plattform
+    
+  guac_backend:
+    build:
+      context: ./guac_backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 8082:8082
+
+  guac_guacd:
+    build:
+      context: ./guac_guacd
+      dockerfile: Dockerfile
+    restart: always
+    hostname: guac-guacd
+    ports:
+      - 4822:4822
+    environment:
+      - FLAG=CSCG{FLAG_PART2}
+      - FLAG_PART1=CSCG{FLAG_PART1}
+
+    

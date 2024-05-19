@@ -1,0 +1,6 @@
+set -x
+#p="file:///flag -o test5"
+#p='-o test5 file:///flag'
+p="-K/home/len1218/config"
+curl -L "$p"
+set +x

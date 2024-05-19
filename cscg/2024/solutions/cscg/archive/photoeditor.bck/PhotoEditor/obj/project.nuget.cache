@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "dgSpecHash": "BZQuxMgYvYqy8nEnONLljfeWtSaku3vDqMupb6jJHuqfHltz6H5VdqcbxfDGaB4JoV6T+jQJ7YBUqh0k6oZMEg==",
+  "success": true,
+  "projectFilePath": "/home/len1218/documents/cscg/photoeditor/PhotoEditor/PhotoEditor.csproj",
+  "expectedPackageFiles": [
+    "/home/len1218/.nuget/packages/newtonsoft.json/13.0.3/newtonsoft.json.13.0.3.nupkg.sha512",
+    "/home/len1218/.nuget/packages/sixlabors.imagesharp/3.1.2/sixlabors.imagesharp.3.1.2.nupkg.sha512",
+    "/home/len1218/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.2/microsoft.aspnetcore.app.ref.8.0.2.nupkg.sha512"
+  ],
+  "logs": [
+    {
+      "code": "NU1903",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Package 'SixLabors.ImageSharp' 3.1.2 has a known high severity vulnerability, https://github.com/advisories/GHSA-65x7-c272-7g7r",
+      "libraryId": "SixLabors.ImageSharp",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
+}

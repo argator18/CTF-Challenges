@@ -1,0 +1,3 @@
+url = "file:///var/www/ctf/conf"
+--no-head
+-o /var/www/ctf/output

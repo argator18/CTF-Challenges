@@ -1,0 +1,10 @@
+import itertools
+import subprocess
+
+
+# Characters to try at each 'X' position
+chars = [i for i in range(48, 58)] + [i for i in range(65, 91)]  # 0-9, A-Z
+
+for i in range(0xff):
+    if (i ^ 0x69) in chars:
+        print(hex(i),chr(i))

@@ -1,0 +1,209 @@
+
+# DECRYPT null-bytes and shebang for Python 3
+DECRYPT = "\x00\x00\x00\x00\x00\x00\x00#!/usr/bin/env python3"
+
+from Crypto.Cipher import AES
+from challenge_secrets import AES_KEY, APP_KEY
+from crcmod.predefined import mkPredefinedCrcFun
+from flask import (
+    Flask, Response, flash, g, redirect, render_template_string, request, session
+)
+import io
+import logging
+import logging.handlers
+import os
+import signal
+import struct
+import sys
+
+# Constants for version and filenames
+VERSION_NUM = 150
+VERSION_STR = "1.5.0"
+UPDATE_FILENAME = "bulb-update.py"
+LOG_FILENAME = "bulb.log"
+
+# HTML template for the main page
+TEMPLATE = """
+<!DOCTYPE html>
+<head>
+    <title>Bulb</title>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h2>Smart Lightbulb</h2>
+        <img src="static/bulb-{{current}}.png" style="width: 150px;height: 174px">
+        <form>
+            <button type="submit" name="value" value="{{next}}" formmethod="post" style="border: outset;">Turn {{next}}</button>
+            <button type="submit" name="value" value="color" formmethod="post" style="border: outset;">Change color</button>
+        </form>
+    </div>
+    <div>
+        <form style="position: absolute;bottom: 10px">
+            <button type="submit" formaction="/update" style="border: none;">Update</button>
+        </form>
+        <span style="position: absolute;bottom: 10px;right: 10px">Version: {{version}}</span>
+    </div>
+</body>
+"""
+
+# HTML template for the update page
+UPDATE_TEMPLATE = """
+<!DOCTYPE html>
+<head>
+    <title>Update</title>
+    <style>
+        input[type="submit"], input::file-selector-button {
+            background: hsl(210, 98%, 80%);
+            border: none;
+            border-radius: 5px;
+            padding: 0.85em 2.5em;
+            cursor: pointer;
+            margin-top: 0.85em;
+            margin-bottom: 0.85em;
+        }
+        .flash {
+            background: rgba(200, 50, 50, 0.5);
+            border: black solid;
+            display: inline-block;
+            border-radius: 5px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h2>Firmware Update</h2>
+        <p>Current version: {{version}}</p>
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash">{{message}}</div><br>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <form method="post" enctype="multipart/form-data">
+            <label for="file">Select update file</label>
+            <input type="file" name="file"><br>
+            <input type="submit" value="Start Update">
+        </form>
+        <br>
+        <p style="max-width: 500px;margin: auto;">If you have any problems with the latest version please <a href="/logs">Download</a> debug files and send them to customer support.
+    </div>
+</body>
+"""
+
+# Logging setup
+log_file = logging.handlers.WatchedFileHandler(LOG_FILENAME)
+log_stdout = logging.StreamHandler(sys.stdout)
+logging.basicConfig(handlers=[log_stdout, log_file])
+logger_switch = logging.getLogger("switch")
+logger_switch.setLevel(logging.DEBUG)
+logger_update = logging.getLogger("update")
+logger_update.setLevel(logging.DEBUG)
+
+app = Flask(__name__)
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 300
+app.secret_key = APP_KEY
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        match request.form.get("value"):
+            case "on":
+                session["switch"] = True
+                logger_switch.info("Switch On")
+            case "off":
+                session["switch"] = False
+                logger_switch.info("Switch Off")
+            case "color":
+                session["color"] = not session.get("color")
+                session["switch"] = True
+                logger_switch.info("Switch Color")
+            case _:
+                session["switch"] = True
+        return redirect("/")
+    match session.get("switch", False), session.get("color", False):
+        case [True, True]:
+            c_val, n_val = "color", "off"
+        case [True, False]:
+            c_val, n_val = "on", "off"
+        case [False, _]:
+            c_val, n_val = "off", "on"
+    return render_template_string(TEMPLATE, current=c_val, next=n_val, version=VERSION_STR)
+
+crc16 = mkPredefinedCrcFun("x-25")
+
+def do_update(file):
+    data = file.read()
+    if len(data) != 8272:
+        logger_update.info("Update file has wrong length %d",len(data))
+        return False
+    magic, version, signed, vendor, product, iv, data = struct.unpack("<8sI?3x16s16s16s8208s", data)
+    if magic != b"Update\x00\x00":
+        logger_update.info("Got wrong magic value %s", magic)
+        return False
+    if version <= VERSION_NUM:
+        logger_update.info("Disallowed downgrade from current version %d to %d", VERSION_NUM, version)
+        return False
+    logger_update.info("Valid update header for %s %s to version %d", vendor, product, version)
+    logger_update.info("Decrypting update content")
+    cipher = AES.new(AES_KEY, AES.MODE_CBC, iv)
+    with open("otuput",'a') as file:
+        file.write("last three blocks" +str(data[-48:]) + "\n")
+        data = cipher.decrypt(data)
+        file.write("last three blocks" +str(data[-48:]) + "\n\n")
+    logger_update.debug("Decrypted content: %s", data)
+    magic, firmware, check_crc = struct.unpack("<8s6x8192sH", data)
+    if magic != b"DECRYPT\x00":
+        logger_update.info("Wrong magic on update content %s", magic)
+        return False
+    calc_crc = crc16(data[:-2])
+    if calc_crc != check_crc:
+        logger_update.info("CRC check failed. given: %d, calculated: %d", check_crc, calc_crc)
+        return False
+    if signed:
+        # we don't need this as data is encrypted
+        return False
+    logger_update.info("All checks passed, writing new firmware file")
+    open(UPDATE_FILENAME, "wb").write(firmware.strip(b"\x00"))
+    os.chmod(UPDATE_FILENAME, 0o777)
+    logger_update.info("Firmware has been written")
+    return True
+
+@app.route("/update", methods=["GET", "POST"])
+def update():
+    if request.method == "POST":
+        if "file" not in request.files:
+            flash("Something went wrong")
+        elif request.files["file"].filename == "":
+            flash("No file selected")
+        elif do_update(request.files["file"]):
+            logger_update.info("Update was successful. Rebooting...")
+            if "SERVER_SOFTWARE" in os.environ:
+                # running under gunicorn
+                os.kill(os.getppid(), signal.SIGTERM)
+            else:
+                os.kill(os.getpid(), signal.SIGINT)
+            flash("Update successful")
+            return """
+            <!DOCTYPE html>
+            <meta http-equiv="refresh" content="3">
+            Update running please wait...
+            """
+        else:
+            flash("Invalid update file")
+        return redirect("/update")
+    return render_template_string(UPDATE_TEMPLATE, version=VERSION_STR)
+
+@app.route("/logs")
+def logs():
+    try:
+        logs = open(LOG_FILENAME, "rb").read()
+        os.unlink(LOG_FILENAME)
+        logger_switch.info("Log file downloaded, removing old log")
+    except FileNotFoundError:
+        logs = b""
+    return Response(logs, mimetype="text/plain", headers={"Content-disposition": "attachment"})
+
+if __name__ == "__main__":
+    app.run(debug=False)

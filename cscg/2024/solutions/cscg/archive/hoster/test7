@@ -1,0 +1,8 @@
+p="-fKconfig"
+if ( dig "$p" | grep -q 'NXDOMAIN' ) || ( dig "$p" 2>&1 | grep -q 'Invalid' ) || ( dig "$p" | grep -q 'SERVFAIL' )
+then
+    echo "[-] Error resolving the domain"
+else
+    curl -I "$p"
+    # certbot -d "$p"
+fi

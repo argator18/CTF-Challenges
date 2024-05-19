@@ -1,0 +1,2 @@
+INFO:switch:Log file downloaded, removing old log
+INFO:werkzeug:127.0.0.1 - - [15/Apr/2024 22:14:12] "GET /logs HTTP/1.1" 200 -

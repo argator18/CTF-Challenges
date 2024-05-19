@@ -1,0 +1,176 @@
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <unistd.h>
+
+#define MAX_NOTES 16
+
+extern char edata;
+extern char data_start;
+
+static inline char *read_line(char **line_buf, size_t *size) {
+  long size_tmp = getdelim(line_buf, size, '\n', stdin);
+
+  if (size_tmp <= 0) {
+    puts("Invalid line");
+    exit(EXIT_FAILURE);
+  }
+  *size=size_tmp;
+  return *line_buf;
+}
+
+void add_note(size_t *sizes, char **notes) {
+  printf("Note: ");
+  for (size_t i = 0; i < MAX_NOTES; i++) {
+    if (sizes[i] == 0) {
+      notes[i] = NULL;
+      sizes[i] = getdelim(&notes[i], &sizes[i], '\n', stdin);
+      printf("Added note: %ld\n", i);
+      return;
+    }
+  }
+  puts("Too many notes");
+  exit(EXIT_FAILURE);
+}
+
+void remove_note(char **line_buf, size_t *size, size_t *sizes, char **notes) {
+  printf("Index: ");
+  char *line = read_line(line_buf, size);
+  char * endptr;
+  unsigned long index = strtoul(line, &endptr, 0);
+  if (line == endptr){
+    puts("du opfer");
+    exit(EXIT_SUCCESS);
+  }
+  if (index >= MAX_NOTES || sizes[index] == 0) {
+    puts("Invalid index");
+    exit(EXIT_FAILURE);
+  }
+  free(notes[index]);
+  sizes[index] = 0;
+}
+
+void edit_note(char **line_buf, size_t *size, size_t *sizes, char **notes) {
+  printf("Index: ");
+  char *line = read_line(line_buf, size);
+  char * endptr;
+  unsigned long index = strtoul(line, &endptr, 0);
+  if (line == endptr){
+    puts("du opfer");
+    exit(EXIT_SUCCESS);
+  }
+  if (index >= MAX_NOTES || sizes[index] == 0) {
+    puts("Invalid index");
+    exit(EXIT_FAILURE);
+  }
+  printf("Note: ");
+  line = read_line(line_buf, size);
+  if (*size - 2 > sizes[index]) {
+      notes[index] = line;
+  }
+  memcpy(notes[index], line, *size - 1);
+}
+
+void flip_bit(char **line_buf, size_t *size, char **notes, size_t * sizes int *flips) {
+  if (*flips == 0) {
+    puts("The laser malfunctions and kills the program!");
+    exit(EXIT_FAILURE);
+  }
+  printf("Index: ");
+  char *line = read_line(line_buf, size);
+  char * endptr;
+  unsigned long index = strtoul(line, &endptr, 0);
+  if (line == endptr){
+    puts("du opfer");
+    exit(EXIT_SUCCESS);
+  }
+  if (index >= MAX_NOTES || sizes[index] == 0) {
+    puts("Invalid index");
+    exit(EXIT_FAILURE);
+  }
+  printf("Offset: ");
+  char offset = (char)strtol(read_line(line_buf, size), NULL, 0);
+  size_t byte = offset / 8;
+  size_t bit = offset & 0b111;
+
+  puts("The laser is positioned and shoots at the selected memory location!");
+  notes[index][byte] ^= 0b1 << bit;
+  *flips = *flips - 1;
+}
+
+void exit_handler() {
+  mprotect(&data_start, (size_t)&edata - (size_t)&data_start,
+           PROT_READ | PROT_WRITE);
+}
+
+int main() {
+
+  char *notes[MAX_NOTES];
+  size_t sizes[MAX_NOTES];
+  char *line_buf = NULL;
+  size_t size = 0;
+
+  int flips = 2;
+
+  char buf[0x80];
+
+  memset(buf, 0, sizeof(buf));
+  memset(notes, 0, sizeof(notes));
+  memset(sizes, 0, sizeof(sizes));
+
+  setvbuf(stdin, buf, _IOFBF, sizeof(buf));
+  setvbuf(stdout, NULL, _IONBF, 0);
+  setvbuf(stderr, NULL, _IONBF, 0);
+
+  mprotect(&data_start, (size_t)&edata - (size_t)&data_start, PROT_READ);
+  on_exit(&exit_handler, NULL);
+
+  if (setuid(0)) {
+    puts("Not running as root :(");
+  }
+
+  puts("╭────────────────────────────────────────────────────╮");
+  puts("│                  FlipNote                          │");
+  puts("│                                                    │");
+  puts("│ Instructions:                                      │");
+  puts("│   - Type 'a' or 'A' to add a note                  │");
+  puts("│   - Type 'e' or 'E' to edit a note                 │");
+  puts("│   - Type 'f' or 'F' to use a laser to flip a bit   │");
+  puts("│   - Type 'r' or 'R' to remove a note               │");
+  puts("│   - Type 'q' or 'Q' to quit the program            │");
+  puts("│                                                    │");
+  puts("╰────────────────────────────────────────────────────╯");
+  for (;;) {
+    printf("> ");
+    switch (read_line(&line_buf, &size)[0]) {
+    case 'a':
+    case 'A':
+      add_note(sizes, notes);
+      break;
+    case 'e':
+    case 'E':
+      edit_note(&line_buf, &size, sizes, notes);
+      break;
+    case 'f':
+    case 'F':
+      flip_bit(&line_buf, &size, notes,sizes, &flips);
+      break;
+    case 'r':
+    case 'R':
+      remove_note(&line_buf, &size, sizes, notes);
+      break;
+    case 'q':
+    case 'Q':
+      exit(EXIT_SUCCESS);
+    default:
+      printf("Invalid option: ");
+      puts(line_buf);
+      break;
+    }
+  }
+
+  free(line_buf);
+  return 0;
+}
